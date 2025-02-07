@@ -1,0 +1,4 @@
+#! /bin/bash
+nano /rootfs/init
+rm usr/initramfs_data.cpio
+make; cp arch/x86/boot/bzImage /mnt/e/UEFI/fd/bzImage.efi

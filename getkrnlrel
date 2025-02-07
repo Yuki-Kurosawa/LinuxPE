@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Check if the input file exists
+if [ ! -f tarball_links.txt ]; then
+    echo "File tarball_links.txt not found!"
+    exit 1
+fi
+
+split="\t\t"
+
+if [ "$1" == "--no-header" ]; then
+    split=" "
+else
+    # Print table header
+    echo -e "Type${split}Version${split}Link"
+    echo "------------------------------------"
+fi
+
+if [ "$1" == "-h" ]; then
+    echo "Usage: getkrnlrel [--no-header]"
+    echo "Options:"
+    echo "  --no-header: Do not print the table header"
+    echo "  -h: Print this help message"
+    exit 0
+fi
+
+content=''
+
+while IFS= read -r line; do
+    if [ $(echo $line | grep '<td>' | wc -l) -eq 1 ]; then
+        content+="$(echo $line | sed 's/<td>//g' | sed 's/<\/td>//g' | sed 's/://g')"
+        content+="${split}"
+    fi
+    if [ $(echo $line | grep '<strong>' | wc -l) -eq 1 ]; then
+        content+="$(echo $line | sed 's/<strong>//g' | sed 's/<\/strong>//g')"
+        content+="${split}"
+    fi
+    if [ $(echo $line | grep '<a' | wc -l) -eq 1 ]; then
+        content+="$(echo $line | sed 's/.*href="\([^"]*\)".*/\1/')"
+        content+="\n"
+    fi
+done < tarball_links.txt
+
+echo -e $content
+
+if ! [ "$1" == "--no-header" ]; then
+    echo "------------------------------------"
+fi
