@@ -1,4 +1,4 @@
-linux.*
+linux-6.13.2/
 *.efi
 *.xz
 *.html
@@ -6,4 +6,4 @@ linux.*
 *.gz
 *.txt
 *.xml
-.vscode
+.vscode/
