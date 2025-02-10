@@ -1,0 +1,9 @@
+linux.*
+*.efi
+*.xz
+*.html
+*.bz2
+*.gz
+*.txt
+*.xml
+.vscode
