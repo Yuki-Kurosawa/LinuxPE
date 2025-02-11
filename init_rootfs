@@ -14,3 +14,28 @@ fi
 cd ..
 
 debootstrap $VERSION ./rootfs $MIRROR
+cat > ./rootfs/initusr <<EOF
+yes initramfs | passwd root
+EOF
+
+chmod a+x ./rootfs/initusr
+chroot ./rootfs ./initusr
+rm -rvf ./rootfs/initusr
+
+cat >> ./rootfs/etc/apt/sources.list <<EOF
+deb $MIRROR $VERSION universe multiverse restricted
+deb $MIRROR $VERSION-updates universe multiverse restricted
+deb $MIRROR $VERSION-security universe multiverse restricted
+EOF
+
+cp dpkg.list ./rootfs/dpkg.list
+cat > ./rootfs/installpkgs <<EOF
+apt update
+apt install -y $(sed -re 's/$/ \\/g' dpkg.list)
+
+EOF
+
+chmod a+x ./rootfs/installpkgs
+chroot ./rootfs ./installpkgs
+rm -rvf ./rootfs/installpkgs
+rm -rvf ./rootfs/dpkg.list

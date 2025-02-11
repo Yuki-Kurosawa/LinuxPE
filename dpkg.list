@@ -129,6 +129,8 @@ intel-microcode
 iptables
 iputils-tracepath
 iucode-tool
+iw
+iwd
 jfsutils
 jq
 keyboxd
@@ -394,6 +396,7 @@ nano
 ncurses-term
 needrestart
 neofetch
+network-manager
 nftables
 nilfs-tools
 ntfs-3g
