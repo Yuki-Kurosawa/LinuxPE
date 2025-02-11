@@ -7,3 +7,4 @@ linux-6.13.2/
 *.txt
 *.xml
 .vscode/
+rootfs/

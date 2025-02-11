@@ -49,6 +49,7 @@ cryptsetup-initramfs
 curl
 dconf-gsettings-backend:amd64
 dconf-service
+debootstrap
 desktop-file-utils
 dialog
 dirmngr
@@ -392,6 +393,7 @@ multipath-tools
 nano
 ncurses-term
 needrestart
+neofetch
 nftables
 nilfs-tools
 ntfs-3g

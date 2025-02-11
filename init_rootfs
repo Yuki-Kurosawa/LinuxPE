@@ -1,0 +1,16 @@
+#! /bin/bash
+export VERSION=noble
+export MIRROR=https://mirrors.aliyun.com/ubuntu
+
+if [ -d rootfs ]; then
+    rm -rvf rootfs
+fi
+mkdir rootfs
+
+cd linux-*
+if [ -f usr/initramfs_data.cpio ]; then
+    rm usr/initramfs_data.cpio
+fi
+cd ..
+
+debootstrap $VERSION ./rootfs $MIRROR
