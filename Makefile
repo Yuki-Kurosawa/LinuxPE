@@ -32,7 +32,7 @@ prepare_rootfs:
 	@./init_rootfs
 	@cd linux-* && sed -ne 's@/rootfs@$(shell pwd)/rootfs@g' -e 'p' ../kernel.config > .config
 
-bzImage.efi: install_deps prepare_rootfs
+bzImage.efi: install_deps extract_and_configure_kernel prepare_rootfs
 	@cd linux-* && make -j$$(nproc)
 	@cp linux-*/arch/x86/boot/bzImage bzImage.efi
 	@cp bzImage.efi /mnt/e/UEFI/fd/bzImage.efi
