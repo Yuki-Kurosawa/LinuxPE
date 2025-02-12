@@ -2,6 +2,9 @@
 
 default: all
 
+install_deps: 
+	@apt install flex bison libelf-dev libssl-dev curl build-essential git -y
+
 kernel_source_index:
 	@# Download kernel index from kernel.org
 	@curl -s https://kernel.org/ -o kernel_source_index.html
@@ -24,9 +27,6 @@ kernel.tar.xz: download_kernel_source
 extract_and_configure_kernel: kernel.tar.xz
 	@tar -xvf kernel.tar.xz
 	@cd linux-* && cp ../kernel.config .config
-
-install_deps: 
-	@apt install flex bison libelf-dev libssl-dev -y
 
 prepare_rootfs:
 	@./init_rootfs
