@@ -1,0 +1,16 @@
+Source: linuxpe
+Section: unknown
+Priority: optional
+Maintainer: Yuki Kurosawa <yuki@ksyuki.com>
+Build-Depends: debhelper-compat (= 13), make
+Standards-Version: 4.6.1
+Homepage: https://github.com/Yuki-Kurosawa/LinuxPE.git
+Rules-Requires-Root: binary-targets
+Vcs-Git: https://github.com/Yuki-Kurosawa/LinuxPE.git
+#Vcs-Browser: https://salsa.debian.org/debian/linuxpe
+
+Package: linuxpe
+Architecture: amd64
+Multi-Arch: foreign
+Depends: 
+Description: Yuki's Linux PE Recovery Kernel Image
