@@ -7,8 +7,6 @@ if [ -d rootfs ]; then
 fi
 mkdir rootfs
 
-exit
-
 cd linux-*
 if [ -f usr/initramfs_data.cpio ]; then
     rm usr/initramfs_data.cpio
