@@ -1,0 +1,10 @@
+Package: linuxpe
+Version: 0.1beta8-1
+Architecture: amd64
+Maintainer: Yuki Kurosawa <yuki@ksyuki.com>
+Installed-Size: 24209
+Section: unknown
+Priority: optional
+Multi-Arch: foreign
+Homepage: https://github.com/Yuki-Kurosawa/LinuxPE.git
+Description: Yuki's Linux PE Recovery Kernel Image

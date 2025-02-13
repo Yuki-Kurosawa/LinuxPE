@@ -5,7 +5,7 @@ default: all
 install_deps: 
 	@apt install flex bison libelf-dev libssl-dev curl build-essential git -y
 
-kernel_source_index:
+kernel_source_index: install_deps
 	@# Download kernel index from kernel.org
 	@curl -s https://kernel.org/ -o kernel_source_index.html
 	@# Extract table content with id 'releases' from the XML file
