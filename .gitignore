@@ -8,3 +8,4 @@ linux-6.13.2/
 *.xml
 .vscode/
 rootfs/
+*.img
