@@ -1,4 +1,4 @@
-linux-6.13.2/
+linux-*/
 *.efi
 *.xz
 *.html
