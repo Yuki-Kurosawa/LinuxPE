@@ -1,43 +1,116 @@
 #! /bin/bash
+
+#define config variables
 export VERSION=noble
 export MIRROR=https://mirrors.aliyun.com/ubuntu
+export FS_FOLDER=$1
+export FS_SIZE=$2
+export FS_TYPE=$3
+export INITRAMFS=$4
+export KEEP_TRASH=0
 
-if [ -d rootfs ]; then
-    rm -rvf rootfs
+
+# define default value when args is empty
+if [ -z "$FS_FOLDER" ]; then
+	FS_FOLDER="rootfs"
 fi
-mkdir rootfs
 
-exit 
-
-cd linux-*
-if [ -f usr/initramfs_data.cpio ]; then
-    rm usr/initramfs_data.cpio
+if [ -z "$FS_SIZE" ]; then
+	FS_SIZE=2048
 fi
-cd ..
 
-debootstrap $VERSION ./rootfs $MIRROR
-cat > ./rootfs/initusr <<EOF
+if [ -z "$FS_TYPE" ]; then
+	FS_TYPE="ext4"
+fi
+
+if [ -z "$INITRAMFS" ]; then
+	INITRAMFS=0
+fi
+
+export SYSROOT=$(pwd)/${FS_FOLDER}
+export SRCROOT=$(pwd)
+
+if [ -d ${FS_FOLDER} ]; then
+	rm -rvf ${FS_FOLDER} >/dev/null 2>/dev/null
+	rm  ${FS_FOLDER}.img >/dev/null 2>/dev/null
+fi
+mkdir ${FS_FOLDER}
+
+if [ "x$INITRAMFS" == "x1" ]; then
+    cd linux-*
+	if [ -f usr/initramfs_data.cpio ]; then
+		rm usr/initramfs_data.cpio
+	fi
+	cd ..
+fi
+
+# init rootfs as disk image
+dd if=/dev/zero of=${FS_FOLDER}.img bs=1M count=${FS_SIZE} >/dev/null 2>/dev/null
+mkfs.${FS_TYPE} ${FS_FOLDER}.img >/dev/null 2>/dev/null
+mount ${FS_FOLDER}.img $SYSROOT
+
+#create trash directories
+create_dirs(){
+	mkdir -p ${FS_FOLDER}{/usr/share/man,/usr/share/doc,/usr/share/info,/var/lib/apt/lists,/var/cache/apt}
+}
+
+create_dirs
+
+# mount trash filesystems
+if [ "x$KEEP_TRASH" == "x0" ]; then
+	mount -t tmpfs tmpfs ${FS_FOLDER}/usr/share/man
+	mount -t tmpfs tmpfs ${FS_FOLDER}/usr/share/doc
+	mount -t tmpfs tmpfs ${FS_FOLDER}/usr/share/info
+	mount -t tmpfs tmpfs ${FS_FOLDER}/var/lib/apt/lists
+	mount -t tmpfs tmpfs ${FS_FOLDER}/var/cache/apt
+fi
+
+
+# init tinyrootfs
+debootstrap --variant=minbase $VERSION $SYSROOT $MIRROR
+
+cat > $SYSROOT/initusr <<EOF
 yes initramfs | passwd root
 EOF
 
-chmod a+x ./rootfs/initusr
-chroot ./rootfs ./initusr
-rm -rvf ./rootfs/initusr
+chmod a+x $SYSROOT/initusr
+arch-chroot $SYSROOT /initusr
+rm -rvf $SYSROOT/initusr
 
-cat >> ./rootfs/etc/apt/sources.list <<EOF
+cat >> $SYSROOT/etc/apt/sources.list <<EOF
 deb $MIRROR $VERSION universe multiverse restricted
 deb $MIRROR $VERSION-updates universe multiverse restricted
 deb $MIRROR $VERSION-security universe multiverse restricted
 EOF
 
-cp dpkg.list ./rootfs/dpkg.list
-cat > ./rootfs/installpkgs <<EOF
+cp $SRCROOT/dpkg.list $SYSROOT/dpkg.list
+
+cat > $SYSROOT/installpkgs <<EOF
 apt update
 apt install -y $(sed -re 's/$/ \\/g' dpkg.list)
 
 EOF
 
-chmod a+x ./rootfs/installpkgs
-chroot ./rootfs ./installpkgs
-rm -rvf ./rootfs/installpkgs
-rm -rvf ./rootfs/dpkg.list
+chmod a+x $SYSROOT/installpkgs
+arch-chroot $SYSROOT ./installpkgs
+rm -rvf $SYSROOT/installpkgs
+rm -rvf $SYSROOT/dpkg.list
+
+
+#unmount trash filesystems\
+if [ "x$KEEP_TRASH" == "x0" ]; then
+	umount $SYSROOT/usr/share/man
+	umount $SYSROOT/usr/share/doc
+	umount $SYSROOT/usr/share/info
+	umount $SYSROOT/var/lib/apt/lists
+	umount $SYSROOT/var/cache/apt
+fi
+
+#file $SYSROOT/bin/* $SYSROOT/sbin/*
+#du -sh $SYSROOT/bin/* $SYSROOT/sbin/*
+df -kh | grep $SYSROOT
+
+if [ "x$INITRAMFS" == "x0" ]; then
+	arch-chroot $SYSROOT /bin/bash
+	umount $SYSROOT
+fi

@@ -502,6 +502,7 @@ python3-urllib3
 python3-wadllib
 python3-xkit
 python3-zope.interface
+qemu-user-static
 rar
 rpcsvc-proto
 rsync
