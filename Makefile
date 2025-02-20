@@ -29,18 +29,18 @@ extract_and_configure_kernel: kernel.tar.xz
 	@cd linux-* && cp ../kernel.config .config
 
 prepare_rootfs: 
-	@./init_rootfs rootfs 2048 ext4 1
+	@./init_rootfs rootfs 1200 ext4 1
 	@cd linux-* && sed -ne 's@/rootfs@$(shell pwd)/rootfs@g' -e 'p' ../kernel.config > .config
 
 bzImage.efi: prepare_rootfs
 	@cd linux-* && make -j$$(nproc)
 	@cp linux-*/arch/x86/boot/bzImage bzImage.efi
 	@cp bzImage.efi /mnt/e/UEFI/fd/bzImage.efi
+	@umount rootfs
 
 clean:
 	@rm -f kernel_source_index.html releases_table.xml tarball_links.txt latest_stable_kernel.txt bzImage.efi kernel.tar.xz bzImage.efi
-	@rm -rvf linux-*
-	@umount rootfs
+	@rm -rvf linux-*	
 	@rm -rvf rootfs
 
 all: install_deps prepare_rootfs kernel.tar.xz bzImage.efi

@@ -87,7 +87,7 @@ cp $SRCROOT/dpkg.list $SYSROOT/dpkg.list
 
 cat > $SYSROOT/installpkgs <<EOF
 apt update
-apt install -y $(sed -re 's/$/ \\/g' dpkg.list)
+apt install -y $(sed -re 's/#.*//g' -re 's/$/ \\/g' dpkg.list)
 
 EOF
 
