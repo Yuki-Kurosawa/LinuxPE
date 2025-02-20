@@ -29,7 +29,7 @@ extract_and_configure_kernel: kernel.tar.xz
 	@cd linux-* && cp ../kernel.config .config
 
 prepare_rootfs: 
-	@./init_rootfs rootfs 1200 ext4 1
+	@./init_rootfs rootfs 1400 ext4 1
 	@cd linux-* && sed -ne 's@/rootfs@$(shell pwd)/rootfs@g' -e 'p' ../kernel.config > .config
 
 bzImage.efi: prepare_rootfs
