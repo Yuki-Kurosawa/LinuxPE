@@ -3,7 +3,7 @@
 default: all
 
 install_deps: 
-	@apt install flex bison libelf-dev libssl-dev curl build-essential git -y
+	@apt install flex bison libelf-dev libssl-dev curl build-essential git libxml2-utils -y
 
 kernel_source_index: install_deps
 	@# Download kernel index from kernel.org
@@ -43,5 +43,5 @@ clean:
 	@rm -rvf linux-*	
 	@rm -rvf rootfs
 
-all: install_deps prepare_rootfs kernel.tar.xz bzImage.efi
+all: install_deps extract_and_configure_kernel prepare_rootfs bzImage.efi
 	@echo "All done!"
