@@ -3,7 +3,7 @@
 default: all
 
 install_deps: 
-	@apt install flex bison libelf-dev libssl-dev curl build-essential git libxml2-utils -y
+	@apt install flex bison libelf-dev libssl-dev curl build-essential git libxml2-utils cpio -y
 
 kernel_source_index: install_deps
 	@# Download kernel index from kernel.org
@@ -33,9 +33,9 @@ prepare_rootfs:
 	@cd linux-* && sed -ne 's@/rootfs@$(shell pwd)/rootfs@g' -e 'p' ../kernel.config > .config
 
 bzImage.efi: prepare_rootfs
-	@cd linux-* && make -j$$(nproc)
+	@cd linux-* && make -j 1
 	@cp linux-*/arch/x86/boot/bzImage bzImage.efi
-	@cp bzImage.efi /mnt/e/UEFI/fd/bzImage.efi
+	@cp bzImage.efi /mnt/e/bzImage.efi
 	@umount rootfs
 
 clean:
