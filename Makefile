@@ -15,11 +15,11 @@ kernel_source_index: install_deps
 
 pick_up_latest: kernel_source_index
 	@# Pick up the latest stable kernel info line from ./getkrnlrel output
-	@./getkrnlrel --no-header | grep 'stable' | head -n 1 > latest_stable_kernel.txt
-	@echo "Selected Kernel Version: $$(cat ./latest_stable_kernel.txt | awk '{print $$2}' | sed -n 'p')"
+	@./getkrnlrel --no-header | grep "${KERNEL_CHANNEL}" | head -n 1 > latest_kernel.txt
+	@echo "Selected Kernel Version: $$(cat ./latest_kernel.txt | awk '{print $$2}' | sed -n 'p')"
 
 download_kernel_source: pick_up_latest
-	@curl $(shell cat latest_stable_kernel.txt | awk '{print $$3}') -o kernel.tar.xz
+	@curl $(shell cat latest_kernel.txt | awk '{print $$3}') -o kernel.tar.xz
 
 kernel.tar.xz: download_kernel_source
 	@echo Kernel sources download successfully.
@@ -39,7 +39,7 @@ bzImage.efi: prepare_rootfs
 	@umount rootfs
 
 clean:
-	@rm -f kernel_source_index.html releases_table.xml tarball_links.txt latest_stable_kernel.txt bzImage.efi kernel.tar.xz bzImage.efi
+	@rm -f kernel_source_index.html releases_table.xml tarball_links.txt latest_kernel.txt bzImage.efi kernel.tar.xz bzImage.efi
 	@rm -rvf linux-*	
 	@rm -rvf rootfs
 
