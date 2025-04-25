@@ -169,6 +169,7 @@ cd file-5.46
 CFLAGS='--static' ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/file \
 --disable-shared --enable-static
 make -j$(nproc) && make install DESTDIR=$SYSROOT
+cd ..
 
 # compile and install busybox to rootfs
 rm -rf * > /dev/null 2>/dev/null
