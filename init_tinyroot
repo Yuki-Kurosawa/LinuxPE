@@ -183,7 +183,9 @@ cd ..
 # unmount rootfs
 file $SYSROOT/bin/*
 du -sh $SYSROOT
+strip $SYSROOT/bin/* $SYSROOT/usr/bin/* $SYSROOT/sbin/* $SYSROOT/usr/sbin/*
+du -sh $SYSROOT
 umount $SYSROOT
 
 # remove temp build directories
-#rm -rf $BUILD_TMP
+rm -rf $BUILD_TMP
