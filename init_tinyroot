@@ -1,0 +1,188 @@
+#! /bin/bash
+
+clear
+
+# define config variables
+export FS_FOLDER=$1
+export FS_SIZE=$2
+export FS_TYPE=$3
+export BUILD_TMP=$(pwd)/build
+export FORCE_UNSAFE_CONFIGURE=1
+
+# define default value when args is empty
+if [ -z "$FS_FOLDER" ]; then
+    FS_FOLDER="rootfs"
+fi
+if [ -z "$FS_SIZE" ]; then
+    FS_SIZE=512
+fi
+if [ -z "$FS_TYPE" ]; then
+    FS_TYPE="ext4"
+fi
+
+export SYSROOT=$(pwd)/${FS_FOLDER}
+export SRCROOT=$(pwd)
+
+if [ -d ${FS_FOLDER} ]; then
+    rm -rvf ${FS_FOLDER} >/dev/null 2>/dev/null
+    rm  ${FS_FOLDER}.img >/dev/null 2>/dev/null
+fi
+
+mkdir ${FS_FOLDER}
+
+# init rootfs as disk image
+dd if=/dev/zero of=${FS_FOLDER}.img bs=1M count=${FS_SIZE} >/dev/null 2>/dev/null
+mkfs.${FS_TYPE} ${FS_FOLDER}.img >/dev/null 2>/dev/null
+mount ${FS_FOLDER}.img $SYSROOT
+
+# create temp build directories
+if [ -d $BUILD_TMP ]; then
+    rm -rf $BUILD_TMP >/dev/null 2>/dev/null
+fi
+mkdir -p $BUILD_TMP
+cd $BUILD_TMP
+
+# do builds in build temp directories
+
+# define some help functions for source pickup
+pickup_gnu_source(){
+    export package=$1
+    export ARC=$2
+    # download source index files
+    curl -s https://ftp.gnu.org/gnu/$package/ > $package.html
+
+    # parse the html to pickup source list
+    # pickup $package-\d.*.tar.gz
+    grep -oP '(?<=href=")[^"]*' $package.html | grep -E "\.tar\.$ARC$" | grep -P "$package-\d" > $package.list
+}
+
+pickup_gnu_latest(){
+    export package=$1
+    export arc=$2
+
+    # keep only version number from list
+    sed -e "s/$package-//" -e "s/.tar.$arc//" $package.list > $package.version
+
+    # sort the version number
+    sort -V $package.version > $package.version.sorted
+
+    # pickup the latest version
+    export latest=$(tail -n 1 $package.version.sorted)
+
+    rm -rf *.version > /dev/null 2>/dev/null
+    rm -rf *.version.sorted > /dev/null 2>/dev/null
+
+    echo $package-$latest.tar.$arc
+}
+
+download_gnu_source(){
+    export package=$1
+    export url=$2
+
+    # download the source
+    curl -O https://ftp.gnu.org/gnu/$package/$url
+    if [ $? -ne 0 ]; then
+        echo "Download $package failed"
+        exit 1
+    fi
+
+    # extract the source
+    tar -xvf $url > /dev/null 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "Extract $package failed"
+        exit 1
+    fi
+
+    # remove the source archive
+    rm -rf $package-$arc > /dev/null 2>/dev/null
+}
+
+pickup_git_source(){
+    export package=$1
+    export url=$2
+
+    # download the source
+    git clone https://github.com/$url.git $package
+    if [ $? -ne 0 ]; then
+        echo "Download $package failed"
+        exit 1
+    fi
+
+    # extract the source
+    cd $package
+    git tag --list
+
+    # remove the source archive
+    cd ..
+}
+
+# compile and install bash to rootfs
+rm -rf * > /dev/null 2>/dev/null
+pickup_gnu_source bash gz
+download_gnu_source bash $(pickup_gnu_latest bash gz)
+cd $(pickup_gnu_latest bash gz | sed 's/.tar.gz//')
+./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/bash \
+--enable-static-link --enable-nls --with-curses --without-bash-malloc --disable-readline
+make -j$(nproc) && make install DESTDIR=$SYSROOT
+cd ..
+
+# compile and install coreutils to rootfs
+rm -rf * > /dev/null 2>/dev/null
+pickup_gnu_source coreutils gz
+download_gnu_source coreutils $(pickup_gnu_latest coreutils gz)
+cd $(pickup_gnu_latest coreutils gz | sed 's/.tar.gz//')
+CFLAGS='--static' ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/coreutils \
+--without-selinux --without-libgmp --disable-acl
+make -j$(nproc) && make install DESTDIR=$SYSROOT
+cd ..
+
+# compile and install util-linux to rootfs
+rm -rf * > /dev/null 2>/dev/null
+wget http://archive.ubuntu.com/ubuntu/pool/main/u/util-linux/util-linux_2.40.2.orig.tar.xz
+tar -xvf util-linux_2.40.2.orig.tar.xz
+cd util-linux-2.40.2
+./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/util-linux \
+--disable-all-programs --enable-static-programs=blkid,fdisk,losetup,mount,nsenter,sfdisk,umount,unshare \
+--enable-blkid --enable-mount --enable-nsenter \
+--enable-unshare --enable-fdisks \
+--enable-losetup \
+--enable-libmount --enable-libblkid --enable-libsmartcols \
+--enable-libfdisk --enable-libuuid
+make -j$(nproc) && make install DESTDIR=$SYSROOT
+cd ..
+
+# compile and install nano to rootfs
+rm -rf * > /dev/null 2>/dev/null
+wget https://www.nano-editor.org/dist/v8/nano-8.4.tar.xz
+tar xvf nano-8.4.tar.xz
+cd nano-8.4
+CFLAGS='--static' ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/nano \
+--disable-nls --enable-utf8
+make -j$(nproc) && make install DESTDIR=$SYSROOT
+cd ..
+
+# compile and install file to rootfs
+rm -rf * > /dev/null 2>/dev/null
+wget https://astron.com/pub/file/file-5.46.tar.gz
+tar xvf file-5.46.tar.gz
+cd file-5.46
+CFLAGS='--static' ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/file \
+--disable-shared --enable-static
+make -j$(nproc) && make install DESTDIR=$SYSROOT
+
+# compile and install busybox to rootfs
+rm -rf * > /dev/null 2>/dev/null
+wget https://busybox.net/downloads/busybox-1.37.0.tar.bz2
+tar xvf busybox-1.37.0.tar.bz2
+cd busybox-1.37.0
+cp $SRCROOT/busybox.config .config
+make -j$(nproc) && make install CONFIG_PREFIX=$SYSROOT
+cd ..
+
+# unmount rootfs
+file $SYSROOT/bin/*
+du -sh $SYSROOT
+umount $SYSROOT
+
+# remove temp build directories
+#rm -rf $BUILD_TMP
