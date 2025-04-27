@@ -6,6 +6,7 @@ clear
 export FS_FOLDER=$1
 export FS_SIZE=$2
 export FS_TYPE=$3
+export INITRAMFS=$4
 export BUILD_TMP=$(pwd)/build
 export FORCE_UNSAFE_CONFIGURE=1
 
@@ -14,10 +15,14 @@ if [ -z "$FS_FOLDER" ]; then
     FS_FOLDER="rootfs"
 fi
 if [ -z "$FS_SIZE" ]; then
-    FS_SIZE=512
+    FS_SIZE=256
 fi
 if [ -z "$FS_TYPE" ]; then
     FS_TYPE="ext4"
+fi
+
+if [ -z "$INITRAMFS" ]; then
+	INITRAMFS=0
 fi
 
 export SYSROOT=$(pwd)/${FS_FOLDER}
@@ -29,6 +34,14 @@ if [ -d ${FS_FOLDER} ]; then
 fi
 
 mkdir ${FS_FOLDER}
+
+if [ "x$INITRAMFS" == "x1" ]; then
+    cd linux-*
+	if [ -f usr/initramfs_data.cpio ]; then
+		rm usr/initramfs_data.cpio
+	fi
+	cd ..
+fi
 
 # init rootfs as disk image
 dd if=/dev/zero of=${FS_FOLDER}.img bs=1M count=${FS_SIZE} >/dev/null 2>/dev/null
