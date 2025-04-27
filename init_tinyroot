@@ -201,6 +201,28 @@ cp $SRCROOT/busybox.config .config
 make -j$(nproc) && make install CONFIG_PREFIX=$SYSROOT
 cd ..
 
+compile and install ncurses to rootfs
+rm -rf * > /dev/null 2>/dev/null
+pickup_gnu_source ncurses gz
+download_gnu_source ncurses $(pickup_gnu_latest ncurses gz)
+cd $(pickup_gnu_latest ncurses gz | sed 's/.tar.gz//')
+CFLAGS='--static' ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/ncurses \
+--without-cxx-binding --without-cxx --without-cxx-binding --without-tests --without-debug 
+make -j$(nproc) && make install DESTDIR=$SYSROOT
+cd ..
+
+# compile and install strace to rootfs
+rm -rf * > /dev/null 2>/dev/null
+wget https://github.com/strace/strace/releases/download/v6.14/strace-6.14.tar.xz
+tar xvf strace-6.14.tar.xz
+cd strace-6.14
+bash
+CFLAGS='--static' ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/strace \
+--enable-mpers=check
+make -j$(nproc) && make install DESTDIR=$SYSROOT
+cd ..
+
+
 cp ../init $SYSROOT/init
 chmod a+x $SYSROOT/init
 
