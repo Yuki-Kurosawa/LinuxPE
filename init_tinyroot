@@ -48,6 +48,14 @@ dd if=/dev/zero of=${FS_FOLDER}.img bs=1M count=${FS_SIZE} >/dev/null 2>/dev/nul
 mkfs.${FS_TYPE} ${FS_FOLDER}.img >/dev/null 2>/dev/null
 mount ${FS_FOLDER}.img $SYSROOT
 
+# do some links
+ln -s usr/bin $SYSROOT/bin
+ln -s usr/sbin $SYSROOT/sbin
+ln -s usr/lib $SYSROOT/lib
+mkdir -p $SYSROOT/usr{/bin,/sbin,/lib}
+mkdir -p $SYSROOT{/bin.usr-is-merged,/sbin.usr-is-merged,/lib.usr-is-merged}
+
+
 # create temp build directories
 if [ -d $BUILD_TMP ]; then
     rm -rf $BUILD_TMP >/dev/null 2>/dev/null
@@ -149,7 +157,7 @@ CFLAGS='--static' ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --lo
 make -j$(nproc) && make install DESTDIR=$SYSROOT
 cd ..
 
-# compile and install util-linux to rootfs
+compile and install util-linux to rootfs
 rm -rf * > /dev/null 2>/dev/null
 wget http://archive.ubuntu.com/ubuntu/pool/main/u/util-linux/util-linux_2.40.2.orig.tar.xz
 tar -xvf util-linux_2.40.2.orig.tar.xz
@@ -198,8 +206,28 @@ chmod a+x $SYSROOT/init
 
 # create some necessary things
 mkdir -p $SYSROOT/{dev,proc,sys,run,etc,tmp,mnt}
+
 rm $SYSROOT/bin/mount
 mv $SYSROOT/bin/mount.static $SYSROOT/bin/mount
+rm $SYSROOT/bin/umount
+mv $SYSROOT/bin/umount.static $SYSROOT/bin/umount
+mv $SYSROOT/bin/losetup.static $SYSROOT/sbin/losetup
+rm $SYSROOT/sbin/blkid
+mv $SYSROOT/sbin/blkid.static $SYSROOT/sbin/blkid
+rm $SYSROOT/sbin/fdisk
+mv $SYSROOT/sbin/fdisk.static $SYSROOT/sbin/fdisk
+rm $SYSROOT/sbin/sfdisk
+mv $SYSROOT/sbin/sfdisk.static $SYSROOT/sbin/sfdisk
+rm $SYSROOT/sbin/cfdisk # cfdisk is not static,remove it
+rm $SYSROOT/usr/bin/nsenter
+mv $SYSROOT/usr/bin/nsenter.static $SYSROOT/usr/bin/nsenter
+rm $SYSROOT/bin/unshare
+mv $SYSROOT/bin/unshare.static $SYSROOT/bin/unshare
+
+
+
+
+
 cd $SYSROOT
 mknod -m 600 dev/console c 5 1
 mknod -m 666 dev/null c 1 3
@@ -221,10 +249,10 @@ du -sh $SYSROOT
 strip $SYSROOT/bin/* $SYSROOT/usr/bin/* $SYSROOT/sbin/* $SYSROOT/usr/sbin/*
 du -sh $SYSROOT
 
-if [ "x$INITRAMFS" == "x0" ]; then
-	arch-chroot $SYSROOT /bin/bash
-	umount $SYSROOT
-fi
+# if [ "x$INITRAMFS" == "x0" ]; then
+# 	arch-chroot $SYSROOT /bin/bash
+# 	umount $SYSROOT
+# fi
 
 # remove temp build directories
-rm -rf $BUILD_TMP
+# rm -rf $BUILD_TMP
