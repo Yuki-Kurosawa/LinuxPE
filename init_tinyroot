@@ -198,7 +198,11 @@ file $SYSROOT/bin/*
 du -sh $SYSROOT
 strip $SYSROOT/bin/* $SYSROOT/usr/bin/* $SYSROOT/sbin/* $SYSROOT/usr/sbin/*
 du -sh $SYSROOT
-umount $SYSROOT
+
+if [ "x$INITRAMFS" == "x0" ]; then
+	arch-chroot $SYSROOT /bin/bash
+	umount $SYSROOT
+fi
 
 # remove temp build directories
 rm -rf $BUILD_TMP
