@@ -15,7 +15,7 @@ if [ -z "$FS_FOLDER" ]; then
     FS_FOLDER="rootfs"
 fi
 if [ -z "$FS_SIZE" ]; then
-    FS_SIZE=256
+    FS_SIZE=512
 fi
 if [ -z "$FS_TYPE" ]; then
     FS_TYPE="ext4"
@@ -143,7 +143,8 @@ pickup_gnu_source bash gz
 download_gnu_source bash $(pickup_gnu_latest bash gz)
 cd $(pickup_gnu_latest bash gz | sed 's/.tar.gz//')
 ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/bash \
---enable-static-link --enable-nls --with-curses --without-bash-malloc --disable-readline
+--enable-static-link --enable-nls --without-bash-malloc --enable-readline --enable-history \
+--enable-job-control --enable-prompt-string-decoding
 make -j$(nproc) && make install DESTDIR=$SYSROOT
 cd ..
 
@@ -157,7 +158,7 @@ CFLAGS='--static' ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --lo
 make -j$(nproc) && make install DESTDIR=$SYSROOT
 cd ..
 
-compile and install util-linux to rootfs
+# compile and install util-linux to rootfs
 rm -rf * > /dev/null 2>/dev/null
 wget http://archive.ubuntu.com/ubuntu/pool/main/u/util-linux/util-linux_2.40.2.orig.tar.xz
 tar -xvf util-linux_2.40.2.orig.tar.xz
@@ -201,7 +202,7 @@ cp $SRCROOT/busybox.config .config
 make -j$(nproc) && make install CONFIG_PREFIX=$SYSROOT
 cd ..
 
-compile and install ncurses to rootfs
+# compile and install ncurses to rootfs
 rm -rf * > /dev/null 2>/dev/null
 pickup_gnu_source ncurses gz
 download_gnu_source ncurses $(pickup_gnu_latest ncurses gz)
@@ -216,11 +217,16 @@ rm -rf * > /dev/null 2>/dev/null
 wget https://github.com/strace/strace/releases/download/v6.14/strace-6.14.tar.xz
 tar xvf strace-6.14.tar.xz
 cd strace-6.14
-bash
 CFLAGS='--static' ./configure --prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/strace \
 --enable-mpers=check
 make -j$(nproc) && make install DESTDIR=$SYSROOT
 cd ..
+
+# install neofetch to rootfs
+rm -rf * > /dev/null 2>/dev/null
+wget https://raw.githubusercontent.com/hykilpikonna/hyfetch/refs/heads/master/neofetch
+chmod a+x neofetch
+cp neofetch $SYSROOT/usr/bin/neofetch
 
 
 cp ../init $SYSROOT/init
@@ -247,8 +253,90 @@ rm $SYSROOT/bin/unshare
 mv $SYSROOT/bin/unshare.static $SYSROOT/bin/unshare
 
 
+cat > $SYSROOT/etc/profile << EOF
+export PS1=$'\\u@\\h: \\w\\$ '
+EOF
+
+chmod a+x $SYSROOT/etc/profile
+
+cat > $SYSROOT/etc/hosts << EOF
+127.0.0.1  localhost $(hostname)
+::1        localhost
+EOF
+
+cat > $SYSROOT/etc/passwd << "EOF"
+root:x:0:0:root:/root:/bin/bash
+bin:x:1:1:bin:/dev/null:/usr/bin/false
+daemon:x:6:6:Daemon User:/dev/null:/usr/bin/false
+messagebus:x:18:18:D-Bus Message Daemon User:/run/dbus:/usr/bin/false
+uuidd:x:80:80:UUID Generation Daemon User:/dev/null:/usr/bin/false
+nobody:x:65534:65534:Unprivileged User:/dev/null:/usr/bin/false
+EOF
+
+cat > $SYSROOT/etc/group << "EOF"
+root:x:0:
+bin:x:1:daemon
+sys:x:2:
+kmem:x:3:
+tape:x:4:
+tty:x:5:
+daemon:x:6:
+floppy:x:7:
+disk:x:8:
+lp:x:9:
+dialout:x:10:
+audio:x:11:
+video:x:12:
+utmp:x:13:
+cdrom:x:15:
+adm:x:16:
+messagebus:x:18:
+input:x:24:
+mail:x:34:
+kvm:x:61:
+uuidd:x:80:
+wheel:x:97:
+users:x:999:
+nogroup:x:65534:
+EOF
+
+touch $SYSROOT/var/log/{btmp,lastlog,faillog,wtmp}
+chgrp -v utmp $SYSROOT/var/log/lastlog
+chmod -v 664  $SYSROOT/var/log/lastlog
+chmod -v 600  $SYSROOT/var/log/btmp
 
 
+# do more fakes for rootfs
+cat > $SYSROOT/etc/issue <<EOF
+Kurosawa Linux 24.04.2 LTS (Kernel Development Branch)\n \l
+EOF
+
+cat > $SYSROOT/etc/os-release <<EOF
+PRETTY_NAME="Kurosawa Linux 24.04.2 LTS"
+NAME="KSLinux"
+VERSION_ID="24.04"
+VERSION="24.04.2 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=kslinux
+ID_LIKE="debian ubuntu"
+HOME_URL="https://github.com/Yuki-Kurosawa/"
+SUPPORT_URL="https://github.com/Yuki-Kurosawa/"
+BUG_REPORT_URL="https://github.com/Yuki-Kurosawa/"
+PRIVACY_POLICY_URL="https://github.com/Yuki-Kurosawa/"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+EOF
+
+cat > $SYSROOT/etc/lsb-release <<EOF
+DISTRIB_ID=KSLinux
+DISTRIB_RELEASE=24.04
+DISTRIB_CODENAME=noble
+DISTRIB_DESCRIPTION="Kurosawa Linux 24.04.2 LTS"
+EOF
+
+cat > $SYSROOT/etc/debian_version <<EOF
+trixie/sid
+EOF
 
 cd $SYSROOT
 mknod -m 600 dev/console c 5 1
@@ -271,10 +359,10 @@ du -sh $SYSROOT
 strip $SYSROOT/bin/* $SYSROOT/usr/bin/* $SYSROOT/sbin/* $SYSROOT/usr/sbin/*
 du -sh $SYSROOT
 
-# if [ "x$INITRAMFS" == "x0" ]; then
-# 	arch-chroot $SYSROOT /bin/bash
-# 	umount $SYSROOT
-# fi
+if [ "x$INITRAMFS" == "x0" ]; then
+	arch-chroot $SYSROOT /bin/bash
+	umount $SYSROOT
+fi
 
-# remove temp build directories
-# rm -rf $BUILD_TMP
+#remove temp build directories
+rm -rf $BUILD_TMP
