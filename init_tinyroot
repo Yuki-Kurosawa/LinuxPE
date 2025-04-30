@@ -28,6 +28,8 @@ fi
 export SYSROOT=$(pwd)/${FS_FOLDER}
 export SRCROOT=$(pwd)
 
+mkdir -p $SRCROOT/debs/pool
+
 if [ -d ${FS_FOLDER} ]; then
     rm -rvf ${FS_FOLDER} >/dev/null 2>/dev/null
     rm  ${FS_FOLDER}.img >/dev/null 2>/dev/null
@@ -172,7 +174,7 @@ EOF
     cat > debian/control << EOF
 Source: ${PKG}
 Section: utils
-Priority: optional
+Priority: required
 Maintainer: Yuki Kurosawa Hotkey <yuki@ksyuki.com>
 Build-Depends: debhelper-compat (= 13), make
 Standards-Version: 4.6.1
@@ -188,7 +190,7 @@ EOF
 
     cat > debian/rules << EOF
 #!/usr/bin/make -f
-#export DEB_CFLAGS_MAINT_APPEND = ${CFLAGS}
+export DEB_CFLAGS_MAINT_APPEND = ${CFLAGS}
 
 %:
 	dh \$@ --without autoreconf
@@ -211,10 +213,10 @@ EOF
 	echo "3.0 (quilt)" > debian/source/format
 
 	#cat debian/control debian/changelog
-	bash
+	
 	
     dpkg-buildpackage -sa
-    cp ../*.deb $SRCROOT/debs
+    cp ../*.deb $SRCROOT/debs/pool
 }
 
 # compile and install bash to rootfs
@@ -486,18 +488,22 @@ FINALIZE_ROOTFS() {
 
 
 BOOTSTRAP_ROOTFS(){
-	debootstrap noble $SYSROOT debs
+	cd $SRCROOT/debs
+	./build.sh
+	cd ..
+	debootstrap --no-check-gpg noble $SYSROOT file://$SRCROOT/debs
+	cd build
 }
 
-#INSTALL_BASH
-#INSTALL_COREUTILS
-#INSTALL_UTIL_LINUX
-#INSTALL_NANO
-#INSTALL_FILE
-#INSTALL_BUSYBOX
-#INSTALL_NCURSES
-#INSTALL_STRACE
-#INSTALL_NEOFETCH
+# INSTALL_BASH
+# INSTALL_COREUTILS
+# INSTALL_UTIL_LINUX
+# INSTALL_NANO
+# INSTALL_FILE
+# INSTALL_BUSYBOX
+# INSTALL_NCURSES
+# INSTALL_STRACE
+# INSTALL_NEOFETCH
 BOOTSTRAP_ROOTFS
-#INSTALL_BASE_FILES
+INSTALL_BASE_FILES
 FINALIZE_ROOTFS
