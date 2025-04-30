@@ -149,7 +149,7 @@ build_deb(){
 	echo PKG=$PKG
 	export VER=$(echo $PKGINFO | sed "s/$PKG-//")
 	echo VER=$VER
-	export DEBVER=$(echo $VER | sed 's/-.*//g')
+	export DEBVER=$VER
 	echo DEBVER=$DEBVER
 
 	echo original tarball: 
@@ -159,10 +159,10 @@ build_deb(){
 	ls ../${PKG}_${DEBVER}.orig.tar.$ARC
 
     mkdir -p debian
-	echo 13 > debian/compat
-	
+	rm debian/compat > /dev/null 2>/dev/null
+
     cat > debian/changelog << EOF
-${PKG} ($VER) unstable; urgency=low
+${PKG} ($VER-1) unstable; urgency=low
 
   * Initial release
 
@@ -188,13 +188,19 @@ EOF
 
     cat > debian/rules << EOF
 #!/usr/bin/make -f
-export DEB_CFLAGS_MAINT_APPEND = ${CFLAGS}
+#export DEB_CFLAGS_MAINT_APPEND = ${CFLAGS}
 
 %:
 	dh \$@ --without autoreconf
 
 override_dh_auto_configure:
 	CFLAGS=${CFLAGS} ./configure ${CONF_FLAGS}
+
+override_dh_auto_clean:
+	@true
+
+override_dh_auto_test:
+	@true
 
 EOF
 
@@ -205,6 +211,7 @@ EOF
 	echo "3.0 (quilt)" > debian/source/format
 
 	#cat debian/control debian/changelog
+	bash
 	
     dpkg-buildpackage -sa
     cp ../*.deb $SRCROOT/debs
@@ -237,31 +244,31 @@ INSTALL_COREUTILS(){
 
 # compile and install util-linux to rootfs
 INSTALL_UTIL_LINUX(){
-rm -rf * > /dev/null 2>/dev/null
-wget http://archive.ubuntu.com/ubuntu/pool/main/u/util-linux/util-linux_2.40.2.orig.tar.xz
-tar -xvf util-linux_2.40.2.orig.tar.xz
-cd util-linux-2.40.2
-CONF_FLAGS='--prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/util-linux \
---disable-all-programs --enable-static-programs=blkid,fdisk,losetup,mount,nsenter,sfdisk,umount,unshare \
---enable-blkid --enable-mount --enable-nsenter \
---enable-unshare --enable-fdisks \
---enable-losetup \
---enable-libmount --enable-libblkid --enable-libsmartcols \
---enable-libfdisk --enable-libuuid' PKG_DESC='miscellaneous system utilities' build_deb xz
+	rm -rf * > /dev/null 2>/dev/null
+	wget http://archive.ubuntu.com/ubuntu/pool/main/u/util-linux/util-linux_2.40.2.orig.tar.xz
+	tar -xvf util-linux_2.40.2.orig.tar.xz
+	cd util-linux-2.40.2
+	CONF_FLAGS='--prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/util-linux \
+	--disable-all-programs --enable-static-programs=blkid,fdisk,losetup,mount,nsenter,sfdisk,umount,unshare \
+	--enable-blkid --enable-mount --enable-nsenter \
+	--enable-unshare --enable-fdisks \
+	--enable-losetup --disable-shared \
+	--enable-libmount --enable-libblkid --enable-libsmartcols \
+	--enable-libfdisk --enable-libuuid' PKG_DESC='miscellaneous system utilities' build_deb xz
 
-cd ..
+	cd ..
 }
 
 # compile and install nano to rootfs
 INSTALL_NANO(){
-rm -rf * > /dev/null 2>/dev/null
-wget https://www.nano-editor.org/dist/v8/nano-8.4.tar.xz
-tar xvf nano-8.4.tar.xz
-cd nano-8.4
-CFLAGS='--static' CONF_FLAGS='--prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/nano \
---disable-nls --enable-utf8' PKG_DESC='small, friendly text editor inspired by Pico' build_deb xz
+	rm -rf * > /dev/null 2>/dev/null
+	wget https://www.nano-editor.org/dist/v8/nano-8.4.tar.xz
+	tar xvf nano-8.4.tar.xz
+	cd nano-8.4
+	CFLAGS='--static' CONF_FLAGS='--prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/nano \
+	--disable-nls --enable-utf8' PKG_DESC='small, friendly text editor inspired by Pico' build_deb xz
 
-cd ..
+	cd ..
 }
 
 # compile and install file to rootfs
@@ -277,8 +284,8 @@ INSTALL_FILE(){
 }
 
 # compile and install busybox to rootfs
-rm -rf * > /dev/null 2>/dev/null
 INSTALL_BUSYBOX(){
+	rm -rf * > /dev/null 2>/dev/null
 	wget https://busybox.net/downloads/busybox-1.37.0.tar.bz2
 	tar xvf busybox-1.37.0.tar.bz2
 	cd busybox-1.37.0
@@ -302,9 +309,18 @@ INSTALL_NCURSES(){
 # compile and install strace to rootfs
 INSTALL_STRACE(){
 	rm -rf * > /dev/null 2>/dev/null
-	wget https://github.com/strace/strace/releases/download/v6.14/strace-6.14.tar.xz
+	if ! [ -f ../tars/strace-6.14.tar.xz ]; then
+		wget https://github.com/strace/strace/releases/download/v6.14/strace-6.14.tar.xz
+	else
+		cp ../tars/strace-6.14.tar.xz .
+	fi
+	
 	tar xvf strace-6.14.tar.xz
 	cd strace-6.14
+	sed -i 's@build/@@g' debian/strace.install > strace.install1
+	mv strace.install1 debian/strace.install
+	sed -i 's@build/@@g' debian/strace.manpages > strace.manpages1
+	mv strace.manpages1 debian/strace.manpages
 	CFLAGS='--static' CONF_FLAGS='--prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/strace \
 	--enable-mpers=check' PKG_DESC='system call tracer' build_deb xz	
 	cd ..
@@ -313,7 +329,12 @@ INSTALL_STRACE(){
 # install neofetch to rootfs
 INSTALL_NEOFETCH(){
 	rm -rf * > /dev/null 2>/dev/null
-	wget https://raw.githubusercontent.com/hykilpikonna/hyfetch/refs/heads/master/neofetch
+	if ! [ -f ../tars/strace-6.14.tar.xz ]; then
+		wget https://raw.githubusercontent.com/hykilpikonna/hyfetch/refs/heads/master/neofetch
+	else
+		cp ../tars/neofetch .
+	fi
+	
 	chmod a+x neofetch
 	cp neofetch $SYSROOT/usr/bin/neofetch
 }
@@ -463,14 +484,20 @@ FINALIZE_ROOTFS() {
     rm -rf $BUILD_TMP
 }
 
-INSTALL_BASH
-INSTALL_COREUTILS
-INSTALL_UTIL_LINUX
-INSTALL_NANO
-INSTALL_FILE
-INSTALL_BUSYBOX
-INSTALL_NCURSES
-INSTALL_STRACE
-INSTALL_NEOFETCH
-INSTALL_BASE_FILES
+
+BOOTSTRAP_ROOTFS(){
+	debootstrap noble $SYSROOT debs
+}
+
+#INSTALL_BASH
+#INSTALL_COREUTILS
+#INSTALL_UTIL_LINUX
+#INSTALL_NANO
+#INSTALL_FILE
+#INSTALL_BUSYBOX
+#INSTALL_NCURSES
+#INSTALL_STRACE
+#INSTALL_NEOFETCH
+BOOTSTRAP_ROOTFS
+#INSTALL_BASE_FILES
 FINALIZE_ROOTFS
