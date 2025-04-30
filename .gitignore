@@ -9,3 +9,5 @@ linux-*/
 .vscode/
 rootfs/
 *.img
+debs/
+*.tar
