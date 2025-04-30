@@ -11,3 +11,4 @@ rootfs/
 *.img
 debs/
 *.tar
+tars/
