@@ -319,7 +319,7 @@ INSTALL_NEOFETCH(){
 
 # Install base-files manually to rootfs
 INSTALL_BASE_FILES() {
-    cp ../init $SYSROOT/init
+    cp ../init_tiny $SYSROOT/init
     chmod a+x $SYSROOT/init
 
     # create some necessary things

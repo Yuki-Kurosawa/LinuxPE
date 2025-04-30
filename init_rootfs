@@ -77,6 +77,8 @@ chmod a+x $SYSROOT/initusr
 arch-chroot $SYSROOT /initusr
 rm -rvf $SYSROOT/initusr
 
+cp ../init $SYSROOT/init
+
 cat >> $SYSROOT/etc/apt/sources.list <<EOF
 deb $MIRROR $VERSION universe multiverse restricted
 deb $MIRROR $VERSION-updates universe multiverse restricted
