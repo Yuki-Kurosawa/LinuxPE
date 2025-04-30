@@ -159,6 +159,8 @@ build_deb(){
 	ls ../${PKG}_${DEBVER}.orig.tar.$ARC
 
     mkdir -p debian
+	echo 13 > debian/compat
+	
     cat > debian/changelog << EOF
 ${PKG} ($VER) unstable; urgency=low
 
