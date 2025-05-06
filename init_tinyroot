@@ -219,6 +219,94 @@ EOF
     cp ../*.deb $SRCROOT/debs/pool
 }
 
+build_deb_busybox(){
+	export ARC=$1
+    export PKGDIR=$(pwd)
+	echo PKGDIR=$PKGDIR
+	export PKGINFO=$(echo $PKGDIR | sed 's/.*\///')
+	echo PKGINFO=$PKGINFO
+
+	# get package name and version
+	export PKG=$(echo $PKGINFO | sed 's/-[0-9].*//')
+	echo PKG=$PKG
+	export VER=$(echo $PKGINFO | sed "s/$PKG-//")
+	echo VER=$VER
+	export DEBVER=$VER
+	echo DEBVER=$DEBVER
+
+	echo original tarball: 
+	ls ../$PKG-$VER.tar.$ARC 
+	mv ../$PKG-$VER.tar.$ARC ../${PKG}_$DEBVER.orig.tar.$ARC
+	echo debian tarball:
+	ls ../${PKG}_${DEBVER}.orig.tar.$ARC
+
+    mkdir -p debian
+	rm debian/compat > /dev/null 2>/dev/null
+
+    cat > debian/changelog << EOF
+${PKG} ($VER-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Yuki Kurosawa Hotkey <yuki@ksyuki.com>  Sat, 01 Jan 2023 00:00:00 +0800
+
+EOF
+    cat > debian/control << EOF
+Source: ${PKG}
+Section: utils
+Priority: required
+Maintainer: Yuki Kurosawa Hotkey <yuki@ksyuki.com>
+Build-Depends: debhelper-compat (= 13), make
+Standards-Version: 4.6.1
+Homepage: https://github.com/Yuki-Kurosawa/LinuxPE.git
+Rules-Requires-Root: binary-targets
+Vcs-Git: https://github.com/Yuki-Kurosawa/LinuxPE.git
+
+Package: ${PKG}
+Architecture: amd64
+Description: ${PKG_DESC}
+ 
+EOF
+
+    cat > debian/rules << EOF
+#!/usr/bin/make -f
+export DEB_CFLAGS_MAINT_APPEND = ${CFLAGS}
+
+%:
+	dh \$@ --without autoreconf
+
+override_dh_auto_configure:
+	@true
+
+override_dh_auto_build:
+	\$(MAKE)
+
+override_dh_auto_install:
+	\$(MAKE) install CONFIG_PREFIX=\$(CURDIR)/debian/busybox/
+
+override_dh_auto_clean:
+	@true
+
+override_dh_auto_test:
+	@true
+
+EOF
+
+	chmod a+x debian/rules
+
+	mkdir -p debian/source
+
+	echo "3.0 (quilt)" > debian/source/format
+
+	#cat debian/control debian/
+	
+	dpkg-source --commit . build_config_changed
+	
+	bash
+    dpkg-buildpackage -sa
+    cp ../*.deb $SRCROOT/debs/pool
+}
+
 # compile and install bash to rootfs
 INSTALL_BASH(){
     rm -rf * > /dev/null 2>/dev/null
@@ -292,7 +380,8 @@ INSTALL_BUSYBOX(){
 	tar xvf busybox-1.37.0.tar.bz2
 	cd busybox-1.37.0
 	cp $SRCROOT/busybox.config .config
-	make -j$(nproc) && make install CONFIG_PREFIX=$SYSROOT
+	#make -j$(nproc) && make install CONFIG_PREFIX=$SYSROOT
+	PKG_DESC='Tiny utilities for small and embedded systems' build_deb_busybox bz2
 	cd ..
 }
 
@@ -500,10 +589,10 @@ BOOTSTRAP_ROOTFS(){
 # INSTALL_UTIL_LINUX
 # INSTALL_NANO
 # INSTALL_FILE
-# INSTALL_BUSYBOX
+INSTALL_BUSYBOX
 # INSTALL_NCURSES
 # INSTALL_STRACE
 # INSTALL_NEOFETCH
-BOOTSTRAP_ROOTFS
-INSTALL_BASE_FILES
+#BOOTSTRAP_ROOTFS
+#INSTALL_BASE_FILES
 FINALIZE_ROOTFS
