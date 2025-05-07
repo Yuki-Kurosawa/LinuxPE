@@ -206,6 +206,7 @@ EOF
 
 	#cat debian/control debian/changelog
 	
+	bash
 	
     dpkg-buildpackage -sa
     cp ../*.deb $SRCROOT/debs/pool
@@ -286,7 +287,7 @@ EOF
 
 	#cat debian/control debian/changelog
 	
-	bash
+	
     dpkg-buildpackage -sa
     cp ../*.deb $SRCROOT/debs/pool
 }
@@ -550,7 +551,7 @@ EOF
 
 	#cat debian/control debian/
 		
-	#bash
+	
     dpkg-buildpackage -sa
     cp ../*.deb $SRCROOT/debs/pool
 }
@@ -625,7 +626,7 @@ EOF
 
 	#cat debian/control debian/
 		
-	#bash
+	
     dpkg-buildpackage -sa
     cp ../*.deb $SRCROOT/debs/pool
 }
@@ -785,16 +786,16 @@ INSTALL_LDCONFIG(){
 	rm -rf * > /dev/null 2>/dev/null
 
 	# create a fake package for ldconfig
-	mkdir ldconfig-9.99.0
-	cd ldconfig-9.99.0
+	mkdir libc6-9.99.0
+	cd libc6-9.99.0
 	echo "#!/bin/bash" > ldconfig
 	echo "exit 0" >> ldconfig
 	chmod a+x ldconfig
 	cp ldconfig ldconfig.real
 
-	tar acvf ../ldconfig-9.99.0.tar.gz ./
+	tar acvf ../libc6-9.99.0.tar.gz ./
 
-	PKG_DESC="Just a ldconfig placeholder due to no dynamic executables" build_deb_ldconfig gz
+	PKG_DESC="Just a libc6 ldconfig placeholder due to no dynamic executables" build_deb_ldconfig gz
 	cd ..
 }
 
@@ -821,6 +822,42 @@ INSTALL_DPKG(){
 
 	CFLAGS=--static LDFLAGS=-L/opt/ncurses/usr/lib CONF_FLAGS='--prefix=/ --with-libz --with-liblzma --with-libzstd --with-libbz2 --without-libselinux ' \
 	PKG_DESC='Debian package management system' build_deb_ld gz
+
+	cd ..
+}
+
+# compile and install tar to rootfs
+INSTALL_TAR(){
+    rm -rf * > /dev/null 2>/dev/null
+    pickup_gnu_source tar gz
+    download_gnu_source tar $(pickup_gnu_latest tar gz)    
+	cd $(pickup_gnu_latest tar gz | sed 's/.tar.gz//')	
+    
+    CFLAGS=--static CONF_FLAGS='--prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/tar \
+    --without-selinux ' PKG_DESC='GNU version of the tar archiving utility' build_deb gz
+    
+    cd ..
+}
+
+# install fake packages to rootfs
+INSTALL_FAKEPKGS(){
+	rm -rf * > /dev/null 2>/dev/null
+
+	mkdir fakepkgs-9.99
+	cd fakepkgs-9.99
+
+	cd ..
+	tar acvf fakepkgs_9.99.orig.tar.gz ./fakepkgs-9.99
+	cd fakepkgs-9.99
+	mkdir -p debian/source
+	echo "3.0 (quilt)" > debian/source/format
+
+	cp $SRCROOT/fakepkgs/control debian/control
+	cp $SRCROOT/fakepkgs/changelog debian/changelog
+	cp $SRCROOT/fakepkgs/rules debian/rules
+
+	dpkg-buildpackage -sa
+	cp ../*.deb $SRCROOT/debs/pool
 
 	cd ..
 }
@@ -860,7 +897,9 @@ BOOTSTRAP_ROOTFS(){
 # INSTALL_STRACE
 # INSTALL_NEOFETCH
 # INSTALL_BASE_FILES
-# INSTALL_LDCONFIG
+INSTALL_LDCONFIG
 # INSTALL_DPKG
+# INSTALL_TAR
+INSTALL_FAKEPKGS
 BOOTSTRAP_ROOTFS
 FINALIZE_ROOTFS

@@ -1,0 +1,33 @@
+Source: fakepkgs
+Section: utils
+Priority: required
+Maintainer: Yuki Kurosawa Hotkey <yuki@ksyuki.com>
+Build-Depends: debhelper-compat (= 13), make
+Standards-Version: 4.6.1
+Homepage: https://github.com/Yuki-Kurosawa/LinuxPE.git
+Rules-Requires-Root: binary-targets
+Vcs-Git: https://github.com/Yuki-Kurosawa/LinuxPE.git
+
+Package: base-passwd
+Architecture: amd64
+Description: fake package for base-passwd
+
+Package: mawk
+Architecture: amd64
+Description: fake package for mawk
+
+Package: awk
+Architecture: amd64
+Description: fake package for awk
+
+Package: perl-base
+Architecture: amd64
+Description: fake package for perl-base
+
+Package: debconf
+Architecture: amd64
+Description: fake package for debconf
+
+Package: libcrypt1
+Architecture: amd64
+Description: fake package for libcrypt1
