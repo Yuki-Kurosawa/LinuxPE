@@ -211,6 +211,86 @@ EOF
     cp ../*.deb $SRCROOT/debs/pool
 }
 
+build_deb_ld(){
+	export ARC=$1
+    export PKGDIR=$(pwd)
+	echo PKGDIR=$PKGDIR
+	export PKGINFO=$(echo $PKGDIR | sed 's/.*\///')
+	echo PKGINFO=$PKGINFO
+
+	# get package name and version
+	export PKG=$(echo $PKGINFO | sed 's/-[0-9].*//')
+	echo PKG=$PKG
+	export VER=$(echo $PKGINFO | sed "s/$PKG-//")
+	echo VER=$VER
+	export DEBVER=$VER
+	echo DEBVER=$DEBVER
+
+	echo original tarball: 
+	ls ../$PKG-$VER.tar.$ARC 
+	mv ../$PKG-$VER.tar.$ARC ../${PKG}_$DEBVER.orig.tar.$ARC
+	echo debian tarball:
+	ls ../${PKG}_${DEBVER}.orig.tar.$ARC
+
+    mkdir -p debian
+	rm debian/compat > /dev/null 2>/dev/null
+
+    cat > debian/changelog << EOF
+${PKG} ($VER-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Yuki Kurosawa Hotkey <yuki@ksyuki.com>  Sat, 01 Jan 2023 00:00:00 +0800
+
+EOF
+    cat > debian/control << EOF
+Source: ${PKG}
+Section: utils
+Priority: required
+Maintainer: Yuki Kurosawa Hotkey <yuki@ksyuki.com>
+Build-Depends: debhelper-compat (= 13), make
+Standards-Version: 4.6.1
+Homepage: https://github.com/Yuki-Kurosawa/LinuxPE.git
+Rules-Requires-Root: binary-targets
+Vcs-Git: https://github.com/Yuki-Kurosawa/LinuxPE.git
+
+Package: ${PKG}
+Architecture: amd64
+Description: ${PKG_DESC}
+ 
+EOF
+
+    cat > debian/rules << EOF
+#!/usr/bin/make -f
+export DEB_CFLAGS_MAINT_APPEND = ${CFLAGS}
+
+%:
+	dh \$@
+
+override_dh_auto_configure:
+	CFLAGS=${CFLAGS} LDFLAGS=${LDFLAGS} ./configure ${CONF_FLAGS}
+
+override_dh_auto_clean:
+	@true
+
+override_dh_auto_test:
+	@true
+
+EOF
+
+	chmod a+x debian/rules
+
+	mkdir -p debian/source
+
+	echo "3.0 (quilt)" > debian/source/format
+
+	#cat debian/control debian/changelog
+	
+	bash
+    dpkg-buildpackage -sa
+    cp ../*.deb $SRCROOT/debs/pool
+}
+
 
 build_deb_util_linux(){
 	export ARC=$1
@@ -718,6 +798,30 @@ INSTALL_LDCONFIG(){
 	cd ..
 }
 
+# compile and install dpkg to rootfs
+INSTALL_DPKG(){
+	rm -rf * > /dev/null 2>/dev/null
+	if ! [ -f ../tars/dpkg-1.22.18.tar.gz ]; then
+		wget https://salsa.debian.org/dpkg-team/dpkg/-/archive/1.22.18/dpkg-1.22.18.tar.gz
+	else
+		cp ../tars/dpkg-1.22.18.tar.gz .
+	fi
+
+	tar xvf dpkg-1.22.18.tar.gz
+	cd dpkg-1.22.18
+	echo 1.22.18 > .dist-version
+	echo 1.22.18 > .dist-vcs-id
+	rm -rvf debian
+	cd ..
+	tar acvf dpkg-1.22.18.tar.gz dpkg-1.22.18
+	cd dpkg-1.22.18
+
+	CFLAGS=--static LDFLAGS=-L/opt/ncurses/usr/lib CONF_FLAGS='--prefix=/ --with-libz --with-liblzma --with-libzstd --with-libbz2 --without-libselinux ' \
+	PKG_DESC='Debian package management system' build_deb_ld gz
+
+	cd ..
+}
+
 FINALIZE_ROOTFS() {
     # unmount rootfs
     file $SYSROOT/bin/*
@@ -753,6 +857,7 @@ BOOTSTRAP_ROOTFS(){
 # INSTALL_STRACE
 # INSTALL_NEOFETCH
 # INSTALL_BASE_FILES
-INSTALL_LDCONFIG
+# INSTALL_LDCONFIG
+INSTALL_DPKG
 BOOTSTRAP_ROOTFS
 FINALIZE_ROOTFS
