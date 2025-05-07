@@ -219,6 +219,109 @@ EOF
     cp ../*.deb $SRCROOT/debs/pool
 }
 
+build_deb_util_linux(){
+	export ARC=$1
+    export PKGDIR=$(pwd)
+	echo PKGDIR=$PKGDIR
+	export PKGINFO=$(echo $PKGDIR | sed 's/.*\///')
+	echo PKGINFO=$PKGINFO
+
+	# get package name and version
+	export PKG=$(echo $PKGINFO | sed 's/-[0-9].*//')
+	echo PKG=$PKG
+	export VER=$(echo $PKGINFO | sed "s/$PKG-//")
+	echo VER=$VER
+	export DEBVER=$VER
+	echo DEBVER=$DEBVER
+
+	echo original tarball: 
+	ls ../$PKG-$VER.tar.$ARC 
+	mv ../$PKG-$VER.tar.$ARC ../${PKG}_$DEBVER.orig.tar.$ARC
+	echo debian tarball:
+	ls ../${PKG}_${DEBVER}.orig.tar.$ARC
+
+    mkdir -p debian
+	rm debian/compat > /dev/null 2>/dev/null
+
+	
+	cat > debian/postinst << EOF
+#!/bin/bash
+rm /bin/mount
+mv /bin/mount.static /bin/mount
+rm /bin/umount
+mv /bin/umount.static /bin/umount
+mv /bin/losetup.static /sbin/losetup
+rm /sbin/blkid
+mv /sbin/blkid.static /sbin/blkid
+rm /sbin/fdisk
+mv /sbin/fdisk.static /sbin/fdisk
+rm /sbin/sfdisk
+mv /sbin/sfdisk.static /sbin/sfdisk
+rm /sbin/cfdisk # cfdisk is not static,remove it
+rm /usr/bin/nsenter
+mv /usr/bin/nsenter.static /usr/bin/nsenter
+rm /bin/unshare
+mv /bin/unshare.static /bin/unshare
+EOF
+
+	chmod a+x debian/postinst
+
+    cat > debian/changelog << EOF
+${PKG} ($VER-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Yuki Kurosawa Hotkey <yuki@ksyuki.com>  Sat, 01 Jan 2023 00:00:00 +0800
+
+EOF
+    cat > debian/control << EOF
+Source: ${PKG}
+Section: utils
+Priority: required
+Maintainer: Yuki Kurosawa Hotkey <yuki@ksyuki.com>
+Build-Depends: debhelper-compat (= 13), make
+Standards-Version: 4.6.1
+Homepage: https://github.com/Yuki-Kurosawa/LinuxPE.git
+Rules-Requires-Root: binary-targets
+Vcs-Git: https://github.com/Yuki-Kurosawa/LinuxPE.git
+
+Package: ${PKG}
+Architecture: amd64
+Description: ${PKG_DESC}
+ 
+EOF
+
+    cat > debian/rules << EOF
+#!/usr/bin/make -f
+export DEB_CFLAGS_MAINT_APPEND = ${CFLAGS}
+
+%:
+	dh \$@ --without autoreconf
+
+override_dh_auto_configure:
+	CFLAGS=${CFLAGS} ./configure ${CONF_FLAGS}
+
+override_dh_auto_clean:
+	@true
+
+override_dh_auto_test:
+	@true
+
+EOF
+
+	chmod a+x debian/rules
+
+	mkdir -p debian/source
+
+	echo "3.0 (quilt)" > debian/source/format
+
+	#cat debian/control debian/changelog
+	
+	
+    dpkg-buildpackage -sa
+    cp ../*.deb $SRCROOT/debs/pool
+}
+
 build_deb_busybox(){
 	export ARC=$1
     export PKGDIR=$(pwd)
@@ -410,13 +513,14 @@ INSTALL_UTIL_LINUX(){
 	wget http://archive.ubuntu.com/ubuntu/pool/main/u/util-linux/util-linux_2.40.2.orig.tar.xz
 	tar -xvf util-linux_2.40.2.orig.tar.xz
 	cd util-linux-2.40.2
+
 	CONF_FLAGS='--prefix=/usr --bindir=/bin --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib/util-linux \
 	--disable-all-programs --enable-static-programs=blkid,fdisk,losetup,mount,nsenter,sfdisk,umount,unshare \
 	--enable-blkid --enable-mount --enable-nsenter \
 	--enable-unshare --enable-fdisks \
 	--enable-losetup --disable-shared \
 	--enable-libmount --enable-libblkid --enable-libsmartcols \
-	--enable-libfdisk --enable-libuuid' PKG_DESC='miscellaneous system utilities' build_deb xz
+	--enable-libfdisk --enable-libuuid' PKG_DESC='miscellaneous system utilities' build_deb_util_linux xz
 
 	cd ..
 }
@@ -505,7 +609,7 @@ INSTALL_NEOFETCH(){
 	chmod a+x ./neofetch-${NEOVER}/neofetch
 	cd neofetch-${NEOVER}
 	tar acvf ../neofetch-${NEOVER}.tar.gz ./
-	#bash
+	
 	PKG_DESC="Shows Linux System Information with Distribution Logo" build_deb_neofetch gz
 }
 
@@ -517,24 +621,6 @@ INSTALL_BASE_FILES() {
 
     # create some necessary things
     mkdir -p $SYSROOT/{dev,proc,sys,run,etc,tmp,mnt}
-
-    rm $SYSROOT/bin/mount
-    mv $SYSROOT/bin/mount.static $SYSROOT/bin/mount
-    rm $SYSROOT/bin/umount
-    mv $SYSROOT/bin/umount.static $SYSROOT/bin/umount
-    mv $SYSROOT/bin/losetup.static $SYSROOT/sbin/losetup
-    rm $SYSROOT/sbin/blkid
-    mv $SYSROOT/sbin/blkid.static $SYSROOT/sbin/blkid
-    rm $SYSROOT/sbin/fdisk
-    mv $SYSROOT/sbin/fdisk.static $SYSROOT/sbin/fdisk
-    rm $SYSROOT/sbin/sfdisk
-    mv $SYSROOT/sbin/sfdisk.static $SYSROOT/sbin/sfdisk
-    rm $SYSROOT/sbin/cfdisk # cfdisk is not static,remove it
-    rm $SYSROOT/usr/bin/nsenter
-    mv $SYSROOT/usr/bin/nsenter.static $SYSROOT/usr/bin/nsenter
-    rm $SYSROOT/bin/unshare
-    mv $SYSROOT/bin/unshare.static $SYSROOT/bin/unshare
-
 
     cat > $SYSROOT/etc/profile << EOF
     export PS1=$'\\u@\\h: \\w\\$ '
@@ -647,7 +733,6 @@ FINALIZE_ROOTFS() {
 
     if [ "x$INITRAMFS" == "x0" ]; then
         arch-chroot $SYSROOT /bin/bash
-		bash
         umount $SYSROOT
     fi
 
@@ -664,15 +749,15 @@ BOOTSTRAP_ROOTFS(){
 	cd build
 }
 
-INSTALL_BASH
-INSTALL_COREUTILS
-INSTALL_UTIL_LINUX
-INSTALL_NANO
-INSTALL_FILE
-INSTALL_BUSYBOX
-INSTALL_NCURSES
-INSTALL_STRACE
-INSTALL_NEOFETCH
+# INSTALL_BASH
+# INSTALL_COREUTILS
+# INSTALL_UTIL_LINUX
+# INSTALL_NANO
+# INSTALL_FILE
+# INSTALL_BUSYBOX
+# INSTALL_NCURSES
+# INSTALL_STRACE
+# INSTALL_NEOFETCH
+# INSTALL_BASE_FILES
 BOOTSTRAP_ROOTFS
-INSTALL_BASE_FILES
 FINALIZE_ROOTFS
