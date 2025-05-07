@@ -50,14 +50,6 @@ dd if=/dev/zero of=${FS_FOLDER}.img bs=1M count=${FS_SIZE} >/dev/null 2>/dev/nul
 mkfs.${FS_TYPE} ${FS_FOLDER}.img >/dev/null 2>/dev/null
 mount ${FS_FOLDER}.img $SYSROOT
 
-# do some links
-ln -s usr/bin $SYSROOT/bin
-ln -s usr/sbin $SYSROOT/sbin
-ln -s usr/lib $SYSROOT/lib
-mkdir -p $SYSROOT/usr{/bin,/sbin,/lib}
-mkdir -p $SYSROOT{/bin.usr-is-merged,/sbin.usr-is-merged,/lib.usr-is-merged}
-
-
 # create temp build directories
 if [ -d $BUILD_TMP ]; then
     rm -rf $BUILD_TMP >/dev/null 2>/dev/null
@@ -218,6 +210,7 @@ EOF
     dpkg-buildpackage -sa
     cp ../*.deb $SRCROOT/debs/pool
 }
+
 
 build_deb_util_linux(){
 	export ARC=$1
@@ -482,6 +475,81 @@ EOF
     cp ../*.deb $SRCROOT/debs/pool
 }
 
+
+build_deb_ldconfig(){
+	export ARC=$1
+    export PKGDIR=$(pwd)
+	echo PKGDIR=$PKGDIR
+	export PKGINFO=$(echo $PKGDIR | sed 's/.*\///')
+	echo PKGINFO=$PKGINFO
+
+	# get package name and version
+	export PKG=$(echo $PKGINFO | sed 's/-[0-9].*//')
+	echo PKG=$PKG
+	export VER=$(echo $PKGINFO | sed "s/$PKG-//")
+	echo VER=$VER
+	export DEBVER=$VER
+	echo DEBVER=$DEBVER
+
+	echo original tarball: 
+	ls ../$PKG-$VER.tar.$ARC 
+	mv ../$PKG-$VER.tar.$ARC ../${PKG}_$DEBVER.orig.tar.$ARC
+	echo debian tarball:
+	ls ../${PKG}_${DEBVER}.orig.tar.$ARC
+
+    mkdir -p debian
+	rm debian/compat > /dev/null 2>/dev/null
+
+    cat > debian/changelog << EOF
+${PKG} ($VER-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Yuki Kurosawa Hotkey <yuki@ksyuki.com>  Sat, 01 Jan 2023 00:00:00 +0800
+
+EOF
+    cat > debian/control << EOF
+Source: ${PKG}
+Section: utils
+Priority: required
+Maintainer: Yuki Kurosawa Hotkey <yuki@ksyuki.com>
+Build-Depends: debhelper-compat (= 13), make
+Standards-Version: 4.6.1
+Homepage: https://github.com/Yuki-Kurosawa/LinuxPE.git
+Rules-Requires-Root: binary-targets
+Vcs-Git: https://github.com/Yuki-Kurosawa/LinuxPE.git
+
+Package: ${PKG}
+Architecture: amd64
+Description: ${PKG_DESC}
+ 
+EOF
+
+	echo "ldconfig /sbin" > debian/install
+	echo "ldconfig.real /sbin" >> debian/install
+
+    cat > debian/rules << EOF
+#!/usr/bin/make -f
+export DEB_CFLAGS_MAINT_APPEND = ${CFLAGS}
+
+%:
+	dh \$@ --without autoreconf
+
+EOF
+
+	chmod a+x debian/rules
+
+	mkdir -p debian/source
+
+	echo "3.0 (quilt)" > debian/source/format
+
+	#cat debian/control debian/
+		
+	#bash
+    dpkg-buildpackage -sa
+    cp ../*.deb $SRCROOT/debs/pool
+}
+
 # compile and install bash to rootfs
 INSTALL_BASH(){
     rm -rf * > /dev/null 2>/dev/null
@@ -613,115 +681,41 @@ INSTALL_NEOFETCH(){
 	PKG_DESC="Shows Linux System Information with Distribution Logo" build_deb_neofetch gz
 }
 
+# compile install base-files manually to rootfs
+INSTALL_BASE_FILES(){
+	rm -rf * > /dev/null 2>/dev/null
+	if ! [ -f ../tars/99kslinux24.04.tar.xz ]; then
+		wget https://github.com/Yuki-Kurosawa/KSLinux_base-files/archive/refs/tags/99kslinux24.04.tar.gz
+		mv 99kslinux24.04.tar.gz base-files-99kslinux24.04.tar.gz
+	else
+		cp ../tars/99kslinux24.04 base-files-99kslinux24.04.tar.gz
+	fi
+	
+	tar xvf base-files-99kslinux24.04.tar.gz
+	mv KSLinux_base-files-99kslinux24.04 base-files-99kslinux24.04
+	cd base-files-99kslinux24.04
+	
+	dpkg-buildpackage -sa
+	cp ../*.deb $SRCROOT/debs/pool
+	cd ..
+}
 
-# Install base-files manually to rootfs
-INSTALL_BASE_FILES() {
-    cp ../init_tiny $SYSROOT/init
-    chmod a+x $SYSROOT/init
+# compile and install ldconfig to rootfs
+INSTALL_LDCONFIG(){
+	rm -rf * > /dev/null 2>/dev/null
 
-    # create some necessary things
-    mkdir -p $SYSROOT/{dev,proc,sys,run,etc,tmp,mnt}
+	# create a fake package for ldconfig
+	mkdir ldconfig-9.99.0
+	cd ldconfig-9.99.0
+	echo "#!/bin/bash" > ldconfig
+	echo "exit 0" >> ldconfig
+	chmod a+x ldconfig
+	cp ldconfig ldconfig.real
 
-    cat > $SYSROOT/etc/profile << EOF
-    export PS1=$'\\u@\\h: \\w\\$ '
-EOF
+	tar acvf ../ldconfig-9.99.0.tar.gz ./
 
-    chmod a+x $SYSROOT/etc/profile
-
-    cat > $SYSROOT/etc/hosts << EOF
-    127.0.0.1  localhost $(hostname)
-    ::1        localhost
-EOF
-
-    cat > $SYSROOT/etc/passwd << "EOF"
-    root:x:0:0:root:/root:/bin/bash
-    bin:x:1:1:bin:/dev/null:/usr/bin/false
-    daemon:x:6:6:Daemon User:/dev/null:/usr/bin/false
-    messagebus:x:18:18:D-Bus Message Daemon User:/run/dbus:/usr/bin/false
-    uuidd:x:80:80:UUID Generation Daemon User:/dev/null:/usr/bin/false
-    nobody:x:65534:65534:Unprivileged User:/dev/null:/usr/bin/false
-EOF
-
-    cat > $SYSROOT/etc/group << "EOF"
-    root:x:0:
-    bin:x:1:daemon
-    sys:x:2:
-    kmem:x:3:
-    tape:x:4:
-    tty:x:5:
-    daemon:x:6:
-    floppy:x:7:
-    disk:x:8:
-    lp:x:9:
-    dialout:x:10:
-    audio:x:11:
-    video:x:12:
-    utmp:x:13:
-    cdrom:x:15:
-    adm:x:16:
-    messagebus:x:18:
-    input:x:24:
-    mail:x:34:
-    kvm:x:61:
-    uuidd:x:80:
-    wheel:x:97:
-    users:x:999:
-    nogroup:x:65534:
-EOF
-
-    touch $SYSROOT/var/log/{btmp,lastlog,faillog,wtmp}
-    chgrp -v utmp $SYSROOT/var/log/lastlog
-    chmod -v 664  $SYSROOT/var/log/lastlog
-    chmod -v 600  $SYSROOT/var/log/btmp
-
-
-    # do more fakes for rootfs
-    cat > $SYSROOT/etc/issue <<EOF
-    Kurosawa Linux 24.04.2 LTS (Kernel Development Branch)\n \l
-EOF
-
-    cat > $SYSROOT/etc/os-release <<EOF
-    PRETTY_NAME="Kurosawa Linux 24.04.2 LTS"
-    NAME="KSLinux"
-    VERSION_ID="24.04"
-    VERSION="24.04.2 LTS (Noble Numbat)"
-    VERSION_CODENAME=noble
-    ID=kslinux
-    ID_LIKE="debian ubuntu"
-    HOME_URL="https://github.com/Yuki-Kurosawa/"
-    SUPPORT_URL="https://github.com/Yuki-Kurosawa/"
-    BUG_REPORT_URL="https://github.com/Yuki-Kurosawa/"
-    PRIVACY_POLICY_URL="https://github.com/Yuki-Kurosawa/"
-    UBUNTU_CODENAME=noble
-    LOGO=ubuntu-logo
-EOF
-
-    cat > $SYSROOT/etc/lsb-release <<EOF
-    DISTRIB_ID=KSLinux
-    DISTRIB_RELEASE=24.04
-    DISTRIB_CODENAME=noble
-    DISTRIB_DESCRIPTION="Kurosawa Linux 24.04.2 LTS"
-EOF
-
-    cat > $SYSROOT/etc/debian_version <<EOF
-    trixie/sid
-EOF
-
-    cd $SYSROOT
-    mknod -m 600 dev/console c 5 1
-    mknod -m 666 dev/null c 1 3
-    mknod -m 666 dev/zero c 1 5
-    mknod -m 666 dev/tty c 5 0
-    mknod -m 666 dev/tty0 c 4 0
-    mknod -m 666 dev/tty1 c 4 1
-    mknod -m 666 dev/tty2 c 4 2
-    mknod -m 666 dev/tty3 c 4 3
-    mknod -m 666 dev/tty4 c 4 4
-
-    ln -s /proc/mounts etc/mtab
-
-    cd ..
-
+	PKG_DESC="Just a ldconfig placeholder due to no dynamic executables" build_deb_ldconfig gz
+	cd ..
 }
 
 FINALIZE_ROOTFS() {
@@ -759,5 +753,6 @@ BOOTSTRAP_ROOTFS(){
 # INSTALL_STRACE
 # INSTALL_NEOFETCH
 # INSTALL_BASE_FILES
+INSTALL_LDCONFIG
 BOOTSTRAP_ROOTFS
 FINALIZE_ROOTFS
