@@ -302,7 +302,79 @@ EOF
 	
 	dpkg-source --commit . build_config_changed
 	
-	bash
+    dpkg-buildpackage -sa
+    cp ../*.deb $SRCROOT/debs/pool
+}
+
+build_deb_neofetch(){
+	export ARC=$1
+    export PKGDIR=$(pwd)
+	echo PKGDIR=$PKGDIR
+	export PKGINFO=$(echo $PKGDIR | sed 's/.*\///')
+	echo PKGINFO=$PKGINFO
+
+	# get package name and version
+	export PKG=$(echo $PKGINFO | sed 's/-[0-9].*//')
+	echo PKG=$PKG
+	export VER=$(echo $PKGINFO | sed "s/$PKG-//")
+	echo VER=$VER
+	export DEBVER=$VER
+	echo DEBVER=$DEBVER
+
+	echo original tarball: 
+	ls ../$PKG-$VER.tar.$ARC 
+	mv ../$PKG-$VER.tar.$ARC ../${PKG}_$DEBVER.orig.tar.$ARC
+	echo debian tarball:
+	ls ../${PKG}_${DEBVER}.orig.tar.$ARC
+
+    mkdir -p debian
+	rm debian/compat > /dev/null 2>/dev/null
+
+    cat > debian/changelog << EOF
+${PKG} ($VER-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Yuki Kurosawa Hotkey <yuki@ksyuki.com>  Sat, 01 Jan 2023 00:00:00 +0800
+
+EOF
+    cat > debian/control << EOF
+Source: ${PKG}
+Section: utils
+Priority: required
+Maintainer: Yuki Kurosawa Hotkey <yuki@ksyuki.com>
+Build-Depends: debhelper-compat (= 13), make
+Standards-Version: 4.6.1
+Homepage: https://github.com/Yuki-Kurosawa/LinuxPE.git
+Rules-Requires-Root: binary-targets
+Vcs-Git: https://github.com/Yuki-Kurosawa/LinuxPE.git
+
+Package: ${PKG}
+Architecture: amd64
+Description: ${PKG_DESC}
+ 
+EOF
+
+	echo "neofetch /bin" > debian/install
+
+    cat > debian/rules << EOF
+#!/usr/bin/make -f
+export DEB_CFLAGS_MAINT_APPEND = ${CFLAGS}
+
+%:
+	dh \$@ --without autoreconf
+
+EOF
+
+	chmod a+x debian/rules
+
+	mkdir -p debian/source
+
+	echo "3.0 (quilt)" > debian/source/format
+
+	#cat debian/control debian/
+		
+	#bash
     dpkg-buildpackage -sa
     cp ../*.deb $SRCROOT/debs/pool
 }
@@ -420,14 +492,21 @@ INSTALL_STRACE(){
 # install neofetch to rootfs
 INSTALL_NEOFETCH(){
 	rm -rf * > /dev/null 2>/dev/null
-	if ! [ -f ../tars/strace-6.14.tar.xz ]; then
+
+	export NEOVER=7.98.0
+
+	if ! [ -f ../tars/neofetch ]; then
 		wget https://raw.githubusercontent.com/hykilpikonna/hyfetch/refs/heads/master/neofetch
 	else
-		cp ../tars/neofetch .
+		mkdir neofetch-${NEOVER}
+		cp ../tars/neofetch ./neofetch-${NEOVER}/neofetch		
 	fi
 	
-	chmod a+x neofetch
-	cp neofetch $SYSROOT/usr/bin/neofetch
+	chmod a+x ./neofetch-${NEOVER}/neofetch
+	cd neofetch-${NEOVER}
+	tar acvf ../neofetch-${NEOVER}.tar.gz ./
+	#bash
+	PKG_DESC="Shows Linux System Information with Distribution Logo" build_deb_neofetch gz
 }
 
 
@@ -568,6 +647,7 @@ FINALIZE_ROOTFS() {
 
     if [ "x$INITRAMFS" == "x0" ]; then
         arch-chroot $SYSROOT /bin/bash
+		bash
         umount $SYSROOT
     fi
 
@@ -584,15 +664,15 @@ BOOTSTRAP_ROOTFS(){
 	cd build
 }
 
-# INSTALL_BASH
-# INSTALL_COREUTILS
-# INSTALL_UTIL_LINUX
-# INSTALL_NANO
-# INSTALL_FILE
+INSTALL_BASH
+INSTALL_COREUTILS
+INSTALL_UTIL_LINUX
+INSTALL_NANO
+INSTALL_FILE
 INSTALL_BUSYBOX
-# INSTALL_NCURSES
-# INSTALL_STRACE
-# INSTALL_NEOFETCH
-#BOOTSTRAP_ROOTFS
-#INSTALL_BASE_FILES
+INSTALL_NCURSES
+INSTALL_STRACE
+INSTALL_NEOFETCH
+BOOTSTRAP_ROOTFS
+INSTALL_BASE_FILES
 FINALIZE_ROOTFS
