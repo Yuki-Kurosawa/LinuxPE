@@ -839,6 +839,26 @@ INSTALL_TAR(){
     cd ..
 }
 
+# compile and install base-passwd to rootfs
+INSTALL_BASE_PASSWD(){
+	rm -rf * > /dev/null 2>/dev/null
+	if ! [ -f ../tars/base-passwd-debian-3.6.7.tar.gz ]; then
+		wget https://salsa.debian.org/debian/base-passwd/-/archive/debian/3.6.7/base-passwd-debian-3.6.7.tar.gz
+	else
+		cp ../tars/base-passwd-debian-3.6.7.tar.gz .
+	fi
+	
+	tar xvf base-passwd-debian-3.6.7.tar.gz
+	mv base-passwd-debian-3.6.7 base-passwd-3.6.7
+	cd base-passwd-3.6.7
+	cp $SRCROOT/base-passwd.rules debian/rules
+	bash
+	dpkg-buildpackage -sa
+	cp ../*.deb $SRCROOT/debs/pool
+	#PKG_DESC='Debian base system master password and group files' build_deb gz
+	cd ..
+}
+
 # install fake packages to rootfs
 INSTALL_FAKEPKGS(){
 	rm -rf * > /dev/null 2>/dev/null
@@ -897,9 +917,10 @@ BOOTSTRAP_ROOTFS(){
 # INSTALL_STRACE
 # INSTALL_NEOFETCH
 # INSTALL_BASE_FILES
-INSTALL_LDCONFIG
+# INSTALL_LDCONFIG
 # INSTALL_DPKG
 # INSTALL_TAR
-INSTALL_FAKEPKGS
+# INSTALL_FAKEPKGS
+INSTALL_BASE_PASSWD
 BOOTSTRAP_ROOTFS
 FINALIZE_ROOTFS

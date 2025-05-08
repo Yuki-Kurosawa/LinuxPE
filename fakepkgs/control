@@ -8,10 +8,6 @@ Homepage: https://github.com/Yuki-Kurosawa/LinuxPE.git
 Rules-Requires-Root: binary-targets
 Vcs-Git: https://github.com/Yuki-Kurosawa/LinuxPE.git
 
-Package: base-passwd
-Architecture: amd64
-Description: fake package for base-passwd
-
 Package: mawk
 Architecture: amd64
 Description: fake package for mawk

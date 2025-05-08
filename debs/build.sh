@@ -1,5 +1,8 @@
 # !/bin/bash
 
+rm -rf dists
+rm -rf packages-*.db
+
 (
   mkdir -p dists/noble/main/binary-amd64
 ) && (
